@@ -200,4 +200,14 @@ double TinMesh::elevation_at_xy(double x, double y) const {
     throw PointNotOnEntityException("XY lies outside the triangulated surface");
 }
 
+std::vector<std::array<Point3d, 3>> TinMesh::triangle_locations() const {
+    std::vector<std::array<Point3d, 3>> locations(index_.triangles.size());
+    for (const auto& triangle : index_.triangles) {
+        const auto& indices = triangle.vertices;
+        locations[triangle.order] = {vertices_[indices[0]], vertices_[indices[1]],
+                                     vertices_[indices[2]]};
+    }
+    return locations;
+}
+
 }  // namespace pycivil3d

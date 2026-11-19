@@ -9,6 +9,9 @@ from pycivil3d import (
     PointNotOnEntityException,
     SurfaceOperationAddTinMultipleVertices,
     TinSurface,
+    TinSurfaceTriangle,
+    TinSurfaceTriangleCollection,
+    TinSurfaceVertex,
 )
 
 
@@ -76,3 +79,29 @@ class TinSurfaceTests(unittest.TestCase):
         self.assertAlmostEqual(self.surface.FindElevationAtXY(2, 2.5), 7)
         with self.assertRaises(PointNotOnEntityException):
             self.surface.FindElevationAtXY(7, 2)
+
+    def test_get_triangles_returns_mesh_snapshot(self):
+        self.assertEqual(self.surface.GetTriangles(False).Count, 0)
+        self.add((0, 0, 1), (2, 0, 2), (0, 2, 3))
+        snapshot = self.surface.GetTriangles(False)
+        self.assertIsInstance(snapshot, TinSurfaceTriangleCollection)
+        self.assertEqual(snapshot.Count, 1)
+        triangle, = snapshot
+        self.assertIsInstance(triangle, TinSurfaceTriangle)
+        self.assertTrue(triangle.IsVisible)
+        self.assertIs(triangle.Surface, self.surface)
+        vertices = (triangle.Vertex1, triangle.Vertex2, triangle.Vertex3)
+        for vertex in vertices:
+            self.assertIsInstance(vertex, TinSurfaceVertex)
+            self.assertIs(vertex.Surface, self.surface)
+        self.assertEqual(
+            {(p.X, p.Y, p.Z) for p in (vertex.Location for vertex in vertices)},
+            {(0, 0, 1), (2, 0, 2), (0, 2, 3)},
+        )
+
+        self.add((2, 2, 4))
+        self.assertEqual(snapshot.Count, 1)
+        self.assertEqual(self.surface.GetTriangles(True).Count, 2)
+        self.assertEqual(self.surface.Triangles.Count, 2)
+        with self.assertRaises(TypeError):
+            self.surface.GetTriangles(None)

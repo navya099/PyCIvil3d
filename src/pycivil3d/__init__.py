@@ -13,6 +13,10 @@ __all__ = [
     "PointNotOnEntityException",
     "SurfaceOperationAddTinMultipleVertices",
     "TinSurface",
+    "TinSurfaceObject",
+    "TinSurfaceTriangle",
+    "TinSurfaceTriangleCollection",
+    "TinSurfaceVertex",
 ]
 
 
@@ -75,6 +79,63 @@ class SurfaceOperationAddTinMultipleVertices:
         return Point3dCollection(self._locations)
 
 
+class TinSurfaceObject:
+    def __init__(self, surface: "TinSurface"):
+        self._surface = surface
+
+    @property
+    def Surface(self) -> "TinSurface":
+        return self._surface
+
+
+class TinSurfaceVertex(TinSurfaceObject):
+    def __init__(self, surface: "TinSurface", location: Point3d):
+        super().__init__(surface)
+        self._location = location
+
+    @property
+    def Location(self) -> Point3d:
+        return self._location
+
+
+class TinSurfaceTriangle(TinSurfaceObject):
+    def __init__(self, surface: "TinSurface", a: Point3d, b: Point3d, c: Point3d):
+        super().__init__(surface)
+        self._vertices = tuple(TinSurfaceVertex(surface, point) for point in (a, b, c))
+
+    @property
+    def Vertex1(self) -> TinSurfaceVertex:
+        return self._vertices[0]
+
+    @property
+    def Vertex2(self) -> TinSurfaceVertex:
+        return self._vertices[1]
+
+    @property
+    def Vertex3(self) -> TinSurfaceVertex:
+        return self._vertices[2]
+
+    @property
+    def IsVisible(self) -> bool:
+        return True
+
+
+class TinSurfaceTriangleCollection:
+    def __init__(self, surface: "TinSurface", locations: Iterable[Iterable[Point3d]]):
+        self._surface = surface
+        self._locations = tuple(locations)
+
+    @property
+    def Count(self) -> int:
+        return len(self._locations)
+
+    def __len__(self) -> int:
+        return self.Count
+
+    def __iter__(self) -> Iterator[TinSurfaceTriangle]:
+        return (TinSurfaceTriangle(self._surface, *points) for points in self._locations)
+
+
 class TinSurface:
     def __init__(self, surface_name: str, object_id: ObjectId):
         self._name = surface_name
@@ -113,3 +174,12 @@ class TinSurface:
 
     def FindElevationAtXY(self, x: float, y: float) -> float:
         return self._mesh.elevation_at_xy(x, y)
+
+    def GetTriangles(self, includeInvisible: bool) -> TinSurfaceTriangleCollection:
+        if not isinstance(includeInvisible, bool):
+            raise TypeError("includeInvisible must be a bool")
+        return TinSurfaceTriangleCollection(self, self._mesh.triangle_locations())
+
+    @property
+    def Triangles(self) -> TinSurfaceTriangleCollection:
+        return self.GetTriangles(False)

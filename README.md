@@ -27,9 +27,16 @@ operation = surface.AddVertices(points)
 
 assert operation.Locations.Count == 3
 assert surface.FindElevationAtXY(2, 3) == 108.0
+
+triangles = surface.GetTriangles(False)
+assert triangles.Count == 1
+for triangle in triangles:
+    print([(p.X, p.Y, p.Z) for p in (
+        triangle.Vertex1.Location, triangle.Vertex2.Location, triangle.Vertex3.Location,
+    )])
 ```
 
-## 첫 구현 범위
+## 지원 범위
 
 - Civil 3D 2026 문서 기준으로 `TinSurface.Create(Database, String)`,
   `AddVertices(Point3dCollection)`, `FindElevationAtXY(Double, Double)`의
@@ -39,10 +46,13 @@ assert surface.FindElevationAtXY(2, 3) == 108.0
   밖의 좌표나 면적을 가진 삼각형이 없는 표면을 조회하면
   `PointNotOnEntityException`을 발생시킵니다. 같은 XYZ는 한 번만 반영하며,
   같은 XY에 서로 다른 Z를 넣는 요청은 배치 전체를 거부합니다.
+- `GetTriangles(includeInvisible)`와 `Triangles`는 조회 시점의 삼각망을
+  반환합니다. 현재 사용자 정의 경계가 없어 모든 삼각형이 보이며, 두
+  `includeInvisible` 값 모두 같은 삼각형 집합을 반환합니다.
 - 각 정점 배치에서 삼각망과 XY 경계 상자 트리를 다시 구성합니다. 표고
   조회는 해당 XY를 포함하는 경계 상자만 탐색합니다.
 - Civil 3D 본체와의 수치 비교는 미검증 상태입니다. 지원 범위 밖에는 DWG,
-  스타일, 트랜잭션, 표면 작업 편집, 세 메서드의 기타 오버로드가 포함됩니다.
+  스타일, 트랜잭션, 표면 작업 편집, 정점 추가와 표면 생성의 기타 오버로드가 포함됩니다.
 
 API 문서는 [TinSurface](https://help.autodesk.com/cloudhelp/2026/ENU/Civil3D-API/files/html/78a4066b-630e-0308-8393-fa77adeffa33.htm),
 [AddVertices](https://help.autodesk.com/cloudhelp/2026/ENU/Civil3D-API/files/html/a36eef1e-e3b4-24ff-0f04-a156b56d79fa.htm),

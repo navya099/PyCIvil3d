@@ -22,6 +22,7 @@ class TinMesh {
 public:
     void add_vertices(const std::vector<Point3d>& locations);
     double elevation_at_xy(double x, double y) const;
+    std::vector<std::array<Point3d, 3>> triangle_locations() const;
 
 private:
     struct Bounds {
