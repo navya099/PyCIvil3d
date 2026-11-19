@@ -84,3 +84,28 @@ python tools/compare_tin.py civil3d-reference.json --abs-tol 1e-8
 정확히 비교하며, 표고에는 `--abs-tol`의 절대 허용오차를 적용합니다.
 좌표와 표고는 기준 파일에 저장할 때 반올림 없이 내보내세요. 종료 코드는
 일치 0, 결과 불일치 1, 입력 또는 실행 오류 2입니다.
+
+### Civil 3D 2026에서 기준 JSON 만들기
+
+Civil 3D와 해당 버전의 .NET SDK가 설치된 Windows에서 저장소를 연 뒤
+PowerShell로 프로젝트를 빌드합니다.
+
+```powershell
+dotnet build tools/civil3d/TinReferenceExporter.csproj -c Release
+```
+
+기본 대상은 Civil 3D 2026~2026.2.1의 `net8.0-windows`입니다. Autodesk가
+.NET 10을 지정한 2026.2.2 이후 버전은 빌드에
+`-p:TargetFramework=net10.0-windows`를 추가합니다. 설치 위치가 다르면
+`-p:Civil3DDir`에 AutoCAD 설치 폴더를 지정합니다. 필요하면
+`-p:Civil3DAssemblyDir`과 `-p:AecAssemblyDir`로 각각
+`AeccDbMgd.dll`과 `AecBaseMgd.dll`이 있는 폴더를 지정합니다.
+[Autodesk .NET 및 어셈블리 안내](https://help.autodesk.com/cloudhelp/2026/ENU/Civil3D-DevGuide/files/GUID-267E68C8-AD2D-4F7F-87DF-831018D56CDB.htm)
+
+1. Civil 3D에서 새 도면을 열고 `NETLOAD`로 빌드된
+   `TinReferenceExporter.dll`을 로드합니다.
+2. `PYCIVIL3D_EXPORT_TIN`을 실행합니다. 첫 입력으로
+   `tests/fixtures/tin_planar_manual.json`을 선택하고 새 출력 JSON 경로를
+   지정합니다. 내보내기 명령은 입력의 정점과 조회 XY만 읽어 결과를 다시
+   계산합니다. 임시 표면을 만든 트랜잭션은 커밋하지 않습니다.
+3. 출력 파일을 `python tools/compare_tin.py <출력 파일>`에 전달합니다.
