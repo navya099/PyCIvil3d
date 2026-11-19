@@ -1,0 +1,11 @@
+{
+  "source": "Hand-calculated planar example",
+  "points": [[0, 0, 100], [10, 0, 110], [0, 10, 120]],
+  "triangles": [[[10, 0, 110], [0, 0, 100], [0, 10, 120]]],
+  "queries": [
+    {"xy": [2, 3], "elevation": 108},
+    {"xy": [5, 5], "elevation": 115},
+    {"xy": [0, 10], "elevation": 120},
+    {"xy": [6, 6], "elevation": null}
+  ]
+}

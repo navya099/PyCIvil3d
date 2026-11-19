@@ -66,3 +66,21 @@ API 문서는 [TinSurface](https://help.autodesk.com/cloudhelp/2026/ENU/Civil3D-
 ```sh
 python -m unittest discover -s tests -v
 ```
+
+## Civil 3D 결과 비교
+
+```sh
+python tools/compare_tin.py tests/fixtures/tin_planar_manual.json
+python tools/compare_tin.py civil3d-reference.json --abs-tol 1e-8
+```
+
+예제 파일의 기대값은 평면 방정식으로 계산했습니다. Civil 3D에서 기준 파일을
+만들 때는 `points`의 입력 순서를 유지해 `AddVertices`를 한 번 호출합니다.
+`GetTriangles(false)`의 각 삼각형은 세 정점의 XYZ 배열로 `triangles`에
+기록합니다. 각 조회의 XY와 `FindElevationAtXY` 결과는 `queries`에 기록하고,
+`PointNotOnEntityException`은 `elevation: null`로 기록합니다.
+
+삼각형과 삼각형 내 정점의 열거 순서는 비교에서 무시합니다. 정점 XYZ는
+정확히 비교하며, 표고에는 `--abs-tol`의 절대 허용오차를 적용합니다.
+좌표와 표고는 기준 파일에 저장할 때 반올림 없이 내보내세요. 종료 코드는
+일치 0, 결과 불일치 1, 입력 또는 실행 오류 2입니다.
