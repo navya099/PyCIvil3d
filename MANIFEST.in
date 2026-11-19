@@ -1,0 +1,3 @@
+include cpp/*.h
+include cpp/vendor/delaunator.hpp
+include cpp/vendor/LICENSE-*
