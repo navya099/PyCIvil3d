@@ -63,3 +63,16 @@ class TinSurfaceTests(unittest.TestCase):
         x, y = 1_000_000_000, -2_000_000_000
         self.add((x, y, 100), (x + 10, y, 110), (x, y + 10, 120))
         self.assertAlmostEqual(self.surface.FindElevationAtXY(x + 2, y + 3), 108)
+
+    def test_index_rebuilds_after_surface_expands(self):
+        self.add(*((x, y, x + 2 * y) for x in range(5) for y in range(5)))
+        for x, y in ((0, 0), (4, 4), (2, 2.5), (3.25, 0.75)):
+            self.assertAlmostEqual(self.surface.FindElevationAtXY(x, y), x + 2 * y)
+
+        with self.assertRaises(PointNotOnEntityException):
+            self.surface.FindElevationAtXY(5, 2)
+        self.add((6, 0, 6), (6, 4, 14))
+        self.assertAlmostEqual(self.surface.FindElevationAtXY(5, 2), 9)
+        self.assertAlmostEqual(self.surface.FindElevationAtXY(2, 2.5), 7)
+        with self.assertRaises(PointNotOnEntityException):
+            self.surface.FindElevationAtXY(7, 2)

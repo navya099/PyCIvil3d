@@ -92,33 +92,110 @@ void TinMesh::add_vertices(const std::vector<Point3d>& locations) {
         return;
     }
 
-    auto triangles = triangulate(vertices);
+    const auto triangles = triangulate(vertices);
+    TriangleIndex index;
+    index.triangles.reserve(triangles.size());
+    for (const auto& triangle : triangles) {
+        const auto& a = vertices[triangle[0]];
+        const auto& b = vertices[triangle[1]];
+        const auto& c = vertices[triangle[2]];
+        const Bounds bounds{std::min({a.x, b.x, c.x}), std::min({a.y, b.y, c.y}),
+                            std::max({a.x, b.x, c.x}), std::max({a.y, b.y, c.y})};
+        index.triangles.push_back({triangle, bounds, index.triangles.size()});
+    }
+    if (!triangles.empty()) {
+        index.build(0, triangles.size());
+    }
+
     vertices_.swap(vertices);
-    triangles_.swap(triangles);
+    index_ = std::move(index);
+}
+
+bool TinMesh::Bounds::contains(double x, double y) const {
+    return x >= min_x && x <= max_x && y >= min_y && y <= max_y;
+}
+
+std::size_t TinMesh::TriangleIndex::build(std::size_t begin, std::size_t end) {
+    constexpr std::size_t leaf_size = 8;
+    Bounds bounds = triangles[begin].bounds;
+    for (std::size_t i = begin + 1; i < end; ++i) {
+        const auto& box = triangles[i].bounds;
+        bounds.min_x = std::min(bounds.min_x, box.min_x);
+        bounds.min_y = std::min(bounds.min_y, box.min_y);
+        bounds.max_x = std::max(bounds.max_x, box.max_x);
+        bounds.max_y = std::max(bounds.max_y, box.max_y);
+    }
+
+    const auto node = nodes.size();
+    nodes.push_back({bounds, begin, end});
+    if (end - begin > leaf_size) {
+        const auto middle = begin + (end - begin) / 2;
+        const bool split_x = static_cast<long double>(bounds.max_x) - bounds.min_x
+                           >= static_cast<long double>(bounds.max_y) - bounds.min_y;
+        const auto center = [split_x](const Triangle& triangle) {
+            const auto& box = triangle.bounds;
+            // Halving before addition keeps the midpoint finite for large coordinates.
+            return split_x ? box.min_x / 2 + box.max_x / 2 : box.min_y / 2 + box.max_y / 2;
+        };
+        std::nth_element(triangles.begin() + begin, triangles.begin() + middle,
+                         triangles.begin() + end, [&](const Triangle& a, const Triangle& b) {
+            return center(a) < center(b);
+        });
+        const auto left = build(begin, middle);
+        const auto right = build(middle, end);
+        nodes[node].left = left;
+        nodes[node].right = right;
+    }
+    return node;
+}
+
+void TinMesh::TriangleIndex::find(std::size_t node, double x, double y,
+                                  const std::vector<Point3d>& points, std::size_t& first_match,
+                                  std::optional<double>& elevation) const {
+    const auto& entry = nodes[node];
+    if (!entry.bounds.contains(x, y)) {
+        return;
+    }
+    if (entry.left != 0) {
+        find(entry.left, x, y, points, first_match, elevation);
+        find(entry.right, x, y, points, first_match, elevation);
+        return;
+    }
+
+    for (std::size_t i = entry.begin; i < entry.end; ++i) {
+        const auto& triangle = triangles[i];
+        // Preserve the original triangle order for queries on shared edges and vertices.
+        if (triangle.order >= first_match || !triangle.bounds.contains(x, y)) {
+            continue;
+        }
+        const auto& a = points[triangle.vertices[0]];
+        const auto& b = points[triangle.vertices[1]];
+        const auto& c = points[triangle.vertices[2]];
+        const auto wa = orient(b, c, x, y);
+        const auto wb = orient(c, a, x, y);
+        const auto wc = orient(a, b, x, y);
+        if (wa >= 0 && wb >= 0 && wc >= 0) {
+            const auto sum = wa + wb + wc;
+            const auto value = (wa / sum) * a.z + (wb / sum) * b.z + (wc / sum) * c.z;
+            elevation = static_cast<double>(std::clamp(
+                value, static_cast<long double>(std::min({a.z, b.z, c.z})),
+                static_cast<long double>(std::max({a.z, b.z, c.z}))));
+            first_match = triangle.order;
+        }
+    }
 }
 
 double TinMesh::elevation_at_xy(double x, double y) const {
     if (!std::isfinite(x) || !std::isfinite(y)) {
         throw std::invalid_argument("XY coordinates must be finite");
     }
-    for (const auto& triangle : triangles_) {
-        const auto& a = vertices_[triangle[0]];
-        const auto& b = vertices_[triangle[1]];
-        const auto& c = vertices_[triangle[2]];
-        if (x < std::min({a.x, b.x, c.x}) || x > std::max({a.x, b.x, c.x})
-            || y < std::min({a.y, b.y, c.y}) || y > std::max({a.y, b.y, c.y})) {
-            continue;
-        }
-        const auto wa = orient(b, c, x, y);
-        const auto wb = orient(c, a, x, y);
-        const auto wc = orient(a, b, x, y);
-        if (wa >= 0 && wb >= 0 && wc >= 0) {
-            const auto sum = wa + wb + wc;
-            const auto elevation = (wa / sum) * a.z + (wb / sum) * b.z + (wc / sum) * c.z;
-            return static_cast<double>(std::clamp(
-                elevation, static_cast<long double>(std::min({a.z, b.z, c.z})),
-                static_cast<long double>(std::max({a.z, b.z, c.z}))));
-        }
+    std::optional<double> elevation;
+    if (!index_.nodes.empty()) {
+        auto first_match = index_.triangles.size();
+        index_.find(0, x, y, vertices_, first_match, elevation);
+    }
+    if (elevation) {
+        return *elevation;
     }
     throw PointNotOnEntityException("XY lies outside the triangulated surface");
 }
