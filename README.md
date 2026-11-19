@@ -109,3 +109,21 @@ dotnet build tools/civil3d/TinReferenceExporter.csproj -c Release
    지정합니다. 내보내기 명령은 입력의 정점과 조회 XY만 읽어 결과를 다시
    계산합니다. 임시 표면을 만든 트랜잭션은 커밋하지 않습니다.
 3. 출력 파일을 `python tools/compare_tin.py <출력 파일>`에 전달합니다.
+
+### 같은 원 위의 네 점 비교
+
+`tests/fixtures/civil3d_inputs`의 `tin_cocircular_abcd.json`과
+`tin_cocircular_bcda.json`은 동일한 정점과 조회 좌표를 사용합니다.
+두 번째 파일은 첫 정점만 순환 이동해 시작점을 바꿉니다.
+
+`PYCIVIL3D_EXPORT_TIN`으로 두 입력을 각각 실행해
+`cocircular-abcd-reference.json`과 `cocircular-bcda-reference.json`으로
+저장합니다. 그런 다음 두 출력 파일을 비교 도구에 전달합니다.
+
+```powershell
+python tools/compare_tin.py cocircular-abcd-reference.json cocircular-bcda-reference.json --abs-tol 1e-8
+```
+
+중앙 `(5, 5)`의 표고는 `(0, 0)`–`(10, 10)` 대각선이면 10이고,
+`(10, 0)`–`(0, 10)` 대각선이면 0입니다. 비교 도구는 정점 순서에
+관계없이 대각선 차이를 삼각망 불일치로 보고합니다.
