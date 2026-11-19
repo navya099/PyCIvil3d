@@ -127,3 +127,7 @@ python tools/compare_tin.py cocircular-abcd-reference.json cocircular-bcda-refer
 중앙 `(5, 5)`의 표고는 `(0, 0)`–`(10, 10)` 대각선이면 10이고,
 `(10, 0)`–`(0, 10)` 대각선이면 0입니다. 비교 도구는 정점 순서에
 관계없이 대각선 차이를 삼각망 불일치로 보고합니다.
+
+Civil 3D 2026에서 내보낸 두 결과는 `tests/fixtures/civil3d_reference`에
+보관합니다. 두 파일에 기록된 `AeccDbMgd` 버전은 `13.8.0.280`입니다.
+일반 테스트 실행 시 이 결과를 기준으로 삼각망, 표고, 표면 밖 조회를 검사합니다.
