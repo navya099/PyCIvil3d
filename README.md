@@ -138,3 +138,14 @@ python tools/compare_tin.py cocircular-abcd-reference.json cocircular-bcda-refer
 Civil 3D 2026에서 내보낸 두 결과는 `tests/fixtures/civil3d_reference`에
 보관합니다. 두 파일에 기록된 `AeccDbMgd` 버전은 `13.8.0.280`입니다.
 일반 테스트 실행 시 이 결과를 기준으로 삼각망, 표고, 표면 밖 조회를 검사합니다.
+
+### 좌표별 삼각형 선택 비교
+
+최신 내보내기 명령은 각 조회에 `FindTriangleAtXY`로 찾은 삼각형의 정점
+XYZ를 `triangle`로 기록합니다. 삼각형을 찾을 수 없으면 `null`을 기록합니다.
+비교 도구는 정점 순서를 무시하고 해당 삼각형의 XYZ를 정확히 비교합니다.
+`triangle` 필드가 없는 기존 파일은 삼각망과 표고만 비교합니다.
+
+공유 모서리와 정점의 선택을 검증하려면 플러그인을 다시 빌드해 로드하고
+위의 네 점 입력 두 개를 새 JSON 파일로 다시 내보냅니다. 두 입력 모두
+중앙 `(5, 5)`가 공유 모서리 위에 있고 `(10, 10)`은 TIN 정점입니다.

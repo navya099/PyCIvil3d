@@ -40,13 +40,13 @@ public sealed class TinReferenceExporter
             var queries = json.RootElement.GetProperty("queries").EnumerateArray()
                 .Select(query => ReadCoordinates(query.GetProperty("xy"), 2)).ToArray();
 
-            var (triangles, elevations) = Capture(document.Database, points, queries);
+            var (triangles, queryResults) = Capture(document.Database, points, queries);
             var reference = new
             {
                 source = $"Autodesk Civil 3D / AeccDbMgd {typeof(TinSurface).Assembly.GetName().Version}",
                 points,
                 triangles,
-                queries = elevations
+                queries = queryResults
             };
             var bytes = JsonSerializer.SerializeToUtf8Bytes(reference, new JsonSerializerOptions { WriteIndented = true });
             SaveNewFile(output.StringResult, bytes);
@@ -62,7 +62,7 @@ public sealed class TinReferenceExporter
         Database database, double[][] points, double[][] queries)
     {
         var triangles = new List<double[][]>();
-        var elevations = new List<QueryResult>();
+        var queryResults = new List<QueryResult>();
         // Disposing without commit rolls back the temporary surface.
         using var transaction = database.TransactionManager.StartTransaction();
         var id = TinSurface.Create(database, $"Pycivil3d reference {Guid.NewGuid():N}");
@@ -80,10 +80,7 @@ public sealed class TinReferenceExporter
             foreach (var triangle in mesh)
             {
                 using var face = triangle;
-                using var first = face.Vertex1;
-                using var second = face.Vertex2;
-                using var third = face.Vertex3;
-                triangles.Add([ToArray(first.Location), ToArray(second.Location), ToArray(third.Location)]);
+                triangles.Add(TriangleLocations(face));
             }
         }
 
@@ -98,9 +95,20 @@ public sealed class TinReferenceExporter
             {
                 elevation = null;
             }
-            elevations.Add(new QueryResult(xy, elevation));
+            double[][]? triangle;
+            try
+            {
+                using var face = surface.FindTriangleAtXY(xy[0], xy[1]);
+                triangle = TriangleLocations(face);
+            }
+            catch (System.ArgumentException)
+            {
+                triangle = null;
+            }
+
+            queryResults.Add(new QueryResult(xy, elevation, triangle));
         }
-        return (triangles, elevations);
+        return (triangles, queryResults);
     }
 
     private static double[] ReadCoordinates(JsonElement element, int count)
@@ -112,6 +120,14 @@ public sealed class TinReferenceExporter
         if (coordinates.Any(value => !double.IsFinite(value)))
             throw new JsonException("Coordinates must be finite.");
         return coordinates;
+    }
+
+    private static double[][] TriangleLocations(TinSurfaceTriangle triangle)
+    {
+        using var first = triangle.Vertex1;
+        using var second = triangle.Vertex2;
+        using var third = triangle.Vertex3;
+        return [ToArray(first.Location), ToArray(second.Location), ToArray(third.Location)];
     }
 
     private static double[] ToArray(Point3d point) => [point.X, point.Y, point.Z];
@@ -130,5 +146,5 @@ public sealed class TinReferenceExporter
         }
     }
 
-    private sealed record QueryResult(double[] xy, double? elevation);
+    private sealed record QueryResult(double[] xy, double? elevation, double[][]? triangle);
 }
