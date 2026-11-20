@@ -150,22 +150,22 @@ std::size_t TinMesh::TriangleIndex::build(std::size_t begin, std::size_t end) {
 }
 
 void TinMesh::TriangleIndex::find(std::size_t node, double x, double y,
-                                  const std::vector<Point3d>& points, std::size_t& first_match,
-                                  std::optional<double>& elevation) const {
+                                  const std::vector<Point3d>& points, TriangleMatch& match) const {
     const auto& entry = nodes[node];
     if (!entry.bounds.contains(x, y)) {
         return;
     }
     if (entry.left != 0) {
-        find(entry.left, x, y, points, first_match, elevation);
-        find(entry.right, x, y, points, first_match, elevation);
+        find(entry.left, x, y, points, match);
+        find(entry.right, x, y, points, match);
         return;
     }
 
     for (std::size_t i = entry.begin; i < entry.end; ++i) {
         const auto& triangle = triangles[i];
         // Preserve the original triangle order for queries on shared edges and vertices.
-        if (triangle.order >= first_match || !triangle.bounds.contains(x, y)) {
+        if ((match.triangle && triangle.order >= match.triangle->order)
+            || !triangle.bounds.contains(x, y)) {
             continue;
         }
         const auto& a = points[triangle.vertices[0]];
@@ -175,39 +175,56 @@ void TinMesh::TriangleIndex::find(std::size_t node, double x, double y,
         const auto wb = orient(c, a, x, y);
         const auto wc = orient(a, b, x, y);
         if (wa >= 0 && wb >= 0 && wc >= 0) {
-            const auto sum = wa + wb + wc;
-            const auto value = (wa / sum) * a.z + (wb / sum) * b.z + (wc / sum) * c.z;
-            elevation = static_cast<double>(std::clamp(
-                value, static_cast<long double>(std::min({a.z, b.z, c.z})),
-                static_cast<long double>(std::max({a.z, b.z, c.z}))));
-            first_match = triangle.order;
+            match = {&triangle, {wa, wb, wc}};
         }
     }
 }
 
-double TinMesh::elevation_at_xy(double x, double y) const {
+TinMesh::TriangleMatch TinMesh::find_triangle(double x, double y) const {
     if (!std::isfinite(x) || !std::isfinite(y)) {
         throw std::invalid_argument("XY coordinates must be finite");
     }
-    std::optional<double> elevation;
+    TriangleMatch match;
     if (!index_.nodes.empty()) {
-        auto first_match = index_.triangles.size();
-        index_.find(0, x, y, vertices_, first_match, elevation);
+        index_.find(0, x, y, vertices_, match);
     }
-    if (elevation) {
-        return *elevation;
+    return match;
+}
+
+double TinMesh::elevation_at_xy(double x, double y) const {
+    const auto match = find_triangle(x, y);
+    if (!match.triangle) {
+        throw PointNotOnEntityException("XY lies outside the triangulated surface");
     }
-    throw PointNotOnEntityException("XY lies outside the triangulated surface");
+
+    const auto [a, b, c] = locations(*match.triangle);
+    const auto [wa, wb, wc] = match.weights;
+    const auto sum = wa + wb + wc;
+    const auto value = (wa / sum) * a.z + (wb / sum) * b.z + (wc / sum) * c.z;
+    return static_cast<double>(std::clamp(
+        value, static_cast<long double>(std::min({a.z, b.z, c.z})),
+        static_cast<long double>(std::max({a.z, b.z, c.z}))));
+}
+
+std::array<Point3d, 3> TinMesh::triangle_at_xy(double x, double y) const {
+    const auto match = find_triangle(x, y);
+    if (!match.triangle) {
+        throw std::invalid_argument("no TIN triangle contains the specified XY");
+    }
+    return locations(*match.triangle);
+}
+
+std::array<Point3d, 3> TinMesh::locations(const Triangle& triangle) const {
+    const auto& indices = triangle.vertices;
+    return {vertices_[indices[0]], vertices_[indices[1]], vertices_[indices[2]]};
 }
 
 std::vector<std::array<Point3d, 3>> TinMesh::triangle_locations() const {
-    std::vector<std::array<Point3d, 3>> locations(index_.triangles.size());
+    std::vector<std::array<Point3d, 3>> triangles(index_.triangles.size());
     for (const auto& triangle : index_.triangles) {
-        const auto& indices = triangle.vertices;
-        locations[triangle.order] = {vertices_[indices[0]], vertices_[indices[1]],
-                                     vertices_[indices[2]]};
+        triangles[triangle.order] = locations(triangle);
     }
-    return locations;
+    return triangles;
 }
 
 }  // namespace pycivil3d

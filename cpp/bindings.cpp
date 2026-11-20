@@ -23,5 +23,6 @@ PYBIND11_MODULE(_core, module) {
         .def(py::init<>())
         .def("add_vertices", &TinMesh::add_vertices)
         .def("elevation_at_xy", &TinMesh::elevation_at_xy)
+        .def("triangle_at_xy", &TinMesh::triangle_at_xy)
         .def("triangle_locations", &TinMesh::triangle_locations);
 }

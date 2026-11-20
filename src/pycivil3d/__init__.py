@@ -175,6 +175,9 @@ class TinSurface:
     def FindElevationAtXY(self, x: float, y: float) -> float:
         return self._mesh.elevation_at_xy(x, y)
 
+    def FindTriangleAtXY(self, x: float, y: float) -> TinSurfaceTriangle:
+        return TinSurfaceTriangle(self, *self._mesh.triangle_at_xy(x, y))
+
     def GetTriangles(self, includeInvisible: bool) -> TinSurfaceTriangleCollection:
         if not isinstance(includeInvisible, bool):
             raise TypeError("includeInvisible must be a bool")

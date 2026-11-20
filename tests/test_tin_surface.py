@@ -105,3 +105,29 @@ class TinSurfaceTests(unittest.TestCase):
         self.assertEqual(self.surface.Triangles.Count, 2)
         with self.assertRaises(TypeError):
             self.surface.GetTriangles(None)
+
+    def test_find_triangle_at_xy(self):
+        with self.assertRaises(ValueError):
+            self.surface.FindTriangleAtXY(0, 0)
+
+        self.add((0, 0, 0), (4, 0, 2), (4, 4, 8), (0, 4, 4))
+        for x, y in ((1, 0.5), (3, 3.5), (2, 2), (0, 0), (4, 2)):
+            with self.subTest(x=x, y=y):
+                triangle = self.surface.FindTriangleAtXY(x=x, y=y)
+                self.assertIsInstance(triangle, TinSurfaceTriangle)
+                self.assertIs(triangle.Surface, self.surface)
+                a, b, c = (vertex.Location for vertex in
+                           (triangle.Vertex1, triangle.Vertex2, triangle.Vertex3))
+                area = (b.X - a.X) * (c.Y - a.Y) - (b.Y - a.Y) * (c.X - a.X)
+                wb = ((x - a.X) * (c.Y - a.Y) - (y - a.Y) * (c.X - a.X)) / area
+                wc = ((b.X - a.X) * (y - a.Y) - (b.Y - a.Y) * (x - a.X)) / area
+                wa = 1 - wb - wc
+                self.assertGreaterEqual(min(wa, wb, wc), 0)
+                self.assertAlmostEqual(
+                    self.surface.FindElevationAtXY(x, y), wa * a.Z + wb * b.Z + wc * c.Z
+                )
+
+        with self.assertRaises(ValueError):
+            self.surface.FindTriangleAtXY(5, 2)
+        with self.assertRaises(ValueError):
+            self.surface.FindTriangleAtXY(math.inf, 2)

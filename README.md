@@ -28,6 +28,9 @@ operation = surface.AddVertices(points)
 assert operation.Locations.Count == 3
 assert surface.FindElevationAtXY(2, 3) == 108.0
 
+triangle = surface.FindTriangleAtXY(2, 3)
+assert triangle.Surface is surface
+
 triangles = surface.GetTriangles(False)
 assert triangles.Count == 1
 for triangle in triangles:
@@ -46,6 +49,10 @@ for triangle in triangles:
   밖의 좌표나 면적을 가진 삼각형이 없는 표면을 조회하면
   `PointNotOnEntityException`을 발생시킵니다. 같은 XYZ는 한 번만 반영하며,
   같은 XY에 서로 다른 Z를 넣는 요청은 배치 전체를 거부합니다.
+- `FindTriangleAtXY(x, y)`는 해당 XY를 포함하는 삼각형을 반환하며,
+  삼각형을 찾을 수 없으면 `ValueError`를 발생시킵니다. 공유 모서리나 정점에서는
+  Pycivil3d의 삼각망 순서에서 먼저 나타나는 삼각형을 선택합니다.
+  [Civil 3D API](https://help.autodesk.com/cloudhelp/2026/ENU/Civil3D-API/files/html/8b567439-3b5b-78ab-ead7-d1195eb79444.htm)
 - `GetTriangles(includeInvisible)`와 `Triangles`는 조회 시점의 삼각망을
   반환합니다. 현재 사용자 정의 경계가 없어 모든 삼각형이 보이며, 두
   `includeInvisible` 값 모두 같은 삼각형 집합을 반환합니다.

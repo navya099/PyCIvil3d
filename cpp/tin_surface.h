@@ -2,7 +2,6 @@
 
 #include <array>
 #include <cstddef>
-#include <optional>
 #include <stdexcept>
 #include <vector>
 
@@ -22,6 +21,7 @@ class TinMesh {
 public:
     void add_vertices(const std::vector<Point3d>& locations);
     double elevation_at_xy(double x, double y) const;
+    std::array<Point3d, 3> triangle_at_xy(double x, double y) const;
     std::vector<std::array<Point3d, 3>> triangle_locations() const;
 
 private:
@@ -48,14 +48,22 @@ private:
         std::size_t right = 0;
     };
 
+    struct TriangleMatch {
+        const Triangle* triangle = nullptr;
+        std::array<long double, 3> weights{};
+    };
+
     struct TriangleIndex {
         std::vector<Triangle> triangles;
         std::vector<Node> nodes;
 
         std::size_t build(std::size_t begin, std::size_t end);
         void find(std::size_t node, double x, double y, const std::vector<Point3d>& points,
-                  std::size_t& first_match, std::optional<double>& elevation) const;
+                  TriangleMatch& match) const;
     };
+
+    TriangleMatch find_triangle(double x, double y) const;
+    std::array<Point3d, 3> locations(const Triangle& triangle) const;
 
     std::vector<Point3d> vertices_;
     TriangleIndex index_;
