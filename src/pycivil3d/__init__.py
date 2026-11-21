@@ -176,7 +176,15 @@ class TinSurface:
         return self._mesh.elevation_at_xy(x, y)
 
     def FindTriangleAtXY(self, x: float, y: float) -> TinSurfaceTriangle:
-        return TinSurfaceTriangle(self, *self._mesh.triangle_at_xy(x, y))
+        try:
+            triangle_at_xy = self._mesh.triangle_at_xy
+        except AttributeError as exc:
+            raise RuntimeError(
+                "The Pycivil3d C++ extension does not support FindTriangleAtXY. "
+                "From the repository root, rebuild it in the active environment with "
+                "'python -m pip install --no-cache-dir --force-reinstall -e .'."
+            ) from exc
+        return TinSurfaceTriangle(self, *triangle_at_xy(x, y))
 
     def GetTriangles(self, includeInvisible: bool) -> TinSurfaceTriangleCollection:
         if not isinstance(includeInvisible, bool):

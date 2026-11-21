@@ -141,6 +141,13 @@ Civil 3D 2026에서 내보낸 두 결과는 `tests/fixtures/civil3d_reference`�
 
 ### 좌표별 삼각형 선택 비교
 
+저장소를 업데이트한 뒤 기존 가상환경을 사용 중이면, 저장소 루트에서
+C++ 확장을 다시 빌드하세요. Python 소스와 C++ 확장은 함께 업데이트해야 합니다.
+
+```powershell
+python -m pip install --no-cache-dir --force-reinstall -e .
+```
+
 최신 내보내기 명령은 각 조회에 `FindTriangleAtXY`로 찾은 삼각형의 정점
 XYZ를 `triangle`로 기록합니다. 삼각형을 찾을 수 없으면 `null`을 기록합니다.
 비교 도구는 정점 순서를 무시하고 해당 삼각형의 XYZ를 정확히 비교합니다.
