@@ -59,7 +59,7 @@ public sealed class TinReferenceExporter : IExtensionApplication
             var points = json.RootElement.GetProperty("points").EnumerateArray()
                 .Select(point => ReadCoordinates(point, 3)).ToArray();
             var queries = json.RootElement.GetProperty("queries").EnumerateArray()
-                .Select(query => ReadCoordinates(query.GetProperty("xy"), 2)).ToArray();
+                .Select(ReadQuery).ToArray();
 
             var (triangles, queryResults) = Capture(document.Database, points, queries);
             var reference = new
@@ -80,11 +80,11 @@ public sealed class TinReferenceExporter : IExtensionApplication
         }
     }
 
-    private static (List<double[][]> Triangles, List<QueryResult> Queries) Capture(
-        Database database, double[][] points, double[][] queries)
+    private static (List<double[][]> Triangles, List<Dictionary<string, object?>> Queries) Capture(
+        Database database, double[][] points, Query[] queries)
     {
         var triangles = new List<double[][]>();
-        var queryResults = new List<QueryResult>();
+        var queryResults = new List<Dictionary<string, object?>>();
         // Disposing without commit rolls back the temporary surface.
         using var transaction = database.TransactionManager.StartTransaction();
         var id = TinSurface.Create(database, $"Pycivil3d reference {Guid.NewGuid():N}");
@@ -106,31 +106,46 @@ public sealed class TinReferenceExporter : IExtensionApplication
             }
         }
 
-        foreach (var xy in queries)
+        foreach (var query in queries)
         {
-            double? elevation;
-            try
+            var xy = query.Xy;
+            var result = new Dictionary<string, object?> { ["xy"] = xy };
+            if (query.Lookup is "both" or "elevation")
             {
-                elevation = surface.FindElevationAtXY(xy[0], xy[1]);
-            }
-            catch (PointNotOnEntityException)
-            {
-                elevation = null;
-            }
-            double[][]? triangle;
-            try
-            {
-                using var face = surface.FindTriangleAtXY(xy[0], xy[1]);
-                triangle = TriangleLocations(face);
-            }
-            catch (System.ArgumentException)
-            {
-                triangle = null;
+                try
+                {
+                    result["elevation"] = surface.FindElevationAtXY(xy[0], xy[1]);
+                }
+                catch (PointNotOnEntityException)
+                {
+                    result["elevation"] = null;
+                }
             }
 
-            queryResults.Add(new QueryResult(xy, elevation, triangle));
+            if (query.Lookup is "both" or "triangle")
+            {
+                try
+                {
+                    using var face = surface.FindTriangleAtXY(xy[0], xy[1]);
+                    result["triangle"] = TriangleLocations(face);
+                }
+                catch (System.ArgumentException)
+                {
+                    result["triangle"] = null;
+                }
+            }
+            queryResults.Add(result);
         }
         return (triangles, queryResults);
+    }
+
+    private static Query ReadQuery(JsonElement query)
+    {
+        var xy = ReadCoordinates(query.GetProperty("xy"), 2);
+        var lookup = query.TryGetProperty("lookup", out var mode) ? mode.GetString() : "both";
+        if (lookup is not ("both" or "elevation" or "triangle"))
+            throw new JsonException("lookup must be both, elevation, or triangle.");
+        return new Query(xy, lookup);
     }
 
     private static double[] ReadCoordinates(JsonElement element, int count)
@@ -168,5 +183,5 @@ public sealed class TinReferenceExporter : IExtensionApplication
         }
     }
 
-    private sealed record QueryResult(double[] xy, double? elevation, double[][]? triangle);
+    private sealed record Query(double[] Xy, string Lookup);
 }

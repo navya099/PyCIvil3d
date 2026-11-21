@@ -60,13 +60,15 @@ def compare(reference, abs_tol):
     queries = []
     for i, query in enumerate(reference["queries"]):
         xy = coordinates(query["xy"], 2, f"queries[{i}].xy")
-        elevation = query["elevation"]
+        if "elevation" not in query and "triangle" not in query:
+            raise ValueError(f"queries[{i}] must include elevation or triangle")
+        elevation = query.get("elevation")
         if elevation is not None:
             elevation = number(elevation, f"queries[{i}].elevation")
         triangle = query.get("triangle")
         if triangle is not None:
             triangle = triangle_key(triangle, f"queries[{i}].triangle")
-        queries.append((xy, elevation, "triangle" in query, triangle))
+        queries.append((xy, "elevation" in query, elevation, "triangle" in query, triangle))
 
     database = Database()
     surface = database.get_object(TinSurface.Create(database, "Reference comparison"))
@@ -84,17 +86,19 @@ def compare(reference, abs_tol):
             first = min(triangles)
             differences.append(f"{count} {label} triangle(s), first {first}")
 
-    for (x, y), expected, compare_triangle, expected_triangle in queries:
-        try:
-            actual = surface.FindElevationAtXY(x, y)
-        except PointNotOnEntityException:
-            actual = None
-        if actual is None or expected is None:
-            matches = actual is expected
-        else:
-            matches = math.isclose(actual, expected, rel_tol=0, abs_tol=abs_tol)
-        if not matches:
-            differences.append(f"XY ({x}, {y}) expected {expected!r}, got {actual!r}")
+    for index, query in enumerate(queries, start=1):
+        (x, y), compare_elevation, expected, compare_triangle, expected_triangle = query
+        if compare_elevation:
+            try:
+                actual = surface.FindElevationAtXY(x, y)
+            except PointNotOnEntityException:
+                actual = None
+            if actual is None or expected is None:
+                matches = actual is expected
+            else:
+                matches = math.isclose(actual, expected, rel_tol=0, abs_tol=abs_tol)
+            if not matches:
+                differences.append(f"Query {index}: XY ({x}, {y}) expected {expected!r}, got {actual!r}")
 
         if compare_triangle:
             try:
@@ -105,7 +109,7 @@ def compare(reference, abs_tol):
                 actual_triangle = surface_triangle_key(triangle)
             if actual_triangle != expected_triangle:
                 differences.append(
-                    f"XY ({x}, {y}) expected triangle {expected_triangle!r}, "
+                    f"Query {index}: XY ({x}, {y}) expected triangle {expected_triangle!r}, "
                     f"got {actual_triangle!r}"
                 )
 
