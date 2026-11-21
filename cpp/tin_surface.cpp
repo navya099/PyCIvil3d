@@ -109,6 +109,7 @@ void TinMesh::add_vertices(const std::vector<Point3d>& locations) {
 
     vertices_.swap(vertices);
     index_ = std::move(index);
+    last_triangle_.reset();
 }
 
 bool TinMesh::Bounds::contains(double x, double y) const {
@@ -163,35 +164,55 @@ void TinMesh::TriangleIndex::find(std::size_t node, double x, double y,
 
     for (std::size_t i = entry.begin; i < entry.end; ++i) {
         const auto& triangle = triangles[i];
-        // Preserve the original triangle order for queries on shared edges and vertices.
-        if ((match.triangle && triangle.order >= match.triangle->order)
-            || !triangle.bounds.contains(x, y)) {
+        if (match.triangle && triangle.order >= match.triangle->order) {
             continue;
         }
-        const auto& a = points[triangle.vertices[0]];
-        const auto& b = points[triangle.vertices[1]];
-        const auto& c = points[triangle.vertices[2]];
-        const auto wa = orient(b, c, x, y);
-        const auto wb = orient(c, a, x, y);
-        const auto wc = orient(a, b, x, y);
-        if (wa >= 0 && wb >= 0 && wc >= 0) {
-            match = {&triangle, {wa, wb, wc}};
+        const auto candidate = match_at(triangle, x, y, points);
+        if (candidate.triangle) {
+            match = candidate;
         }
     }
 }
 
-TinMesh::TriangleMatch TinMesh::find_triangle(double x, double y) const {
+TinMesh::TriangleMatch TinMesh::match_at(const Triangle& triangle, double x, double y,
+                                        const std::vector<Point3d>& points) {
+    if (!triangle.bounds.contains(x, y)) {
+        return {};
+    }
+    const auto& a = points[triangle.vertices[0]];
+    const auto& b = points[triangle.vertices[1]];
+    const auto& c = points[triangle.vertices[2]];
+    const auto wa = orient(b, c, x, y);
+    const auto wb = orient(c, a, x, y);
+    const auto wc = orient(a, b, x, y);
+    if (wa >= 0 && wb >= 0 && wc >= 0) {
+        return {&triangle, {wa, wb, wc}};
+    }
+    return {};
+}
+
+TinMesh::TriangleMatch TinMesh::find_triangle(double x, double y) {
     if (!std::isfinite(x) || !std::isfinite(y)) {
         throw std::invalid_argument("XY coordinates must be finite");
     }
+    if (last_triangle_ && *last_triangle_ < index_.triangles.size()) {
+        const auto cached = match_at(index_.triangles[*last_triangle_], x, y, vertices_);
+        if (cached.triangle) {
+            return cached;
+        }
+    }
+
     TriangleMatch match;
     if (!index_.nodes.empty()) {
         index_.find(0, x, y, vertices_, match);
     }
+    if (match.triangle) {
+        last_triangle_ = static_cast<std::size_t>(match.triangle - index_.triangles.data());
+    }
     return match;
 }
 
-double TinMesh::elevation_at_xy(double x, double y) const {
+double TinMesh::elevation_at_xy(double x, double y) {
     const auto match = find_triangle(x, y);
     if (!match.triangle) {
         throw PointNotOnEntityException("XY lies outside the triangulated surface");
@@ -206,7 +227,7 @@ double TinMesh::elevation_at_xy(double x, double y) const {
         static_cast<long double>(std::max({a.z, b.z, c.z}))));
 }
 
-std::array<Point3d, 3> TinMesh::triangle_at_xy(double x, double y) const {
+std::array<Point3d, 3> TinMesh::triangle_at_xy(double x, double y) {
     const auto match = find_triangle(x, y);
     if (!match.triangle) {
         throw std::invalid_argument("no TIN triangle contains the specified XY");

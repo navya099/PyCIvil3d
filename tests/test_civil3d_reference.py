@@ -45,3 +45,18 @@ class Civil3dReferenceTests(unittest.TestCase):
 
         center["triangle"] = None
         self.assertIn("expected triangle None", compare(reference, abs_tol=1e-8)[0])
+
+    def test_lookup_methods_share_the_previous_triangle(self):
+        fixtures = Path(__file__).parent / "fixtures"
+        name = "tin_interior_edge_lookup_methods.json"
+        case = json.loads((fixtures / "civil3d_inputs" / name).read_text(encoding="utf-8"))
+        reference = json.loads(
+            (fixtures / "civil3d_reference" / name).read_text(encoding="utf-8-sig")
+        )
+        self.assertEqual(reference["points"], case["points"])
+        self.assertEqual(
+            [(query["xy"], set(query) - {"xy"}) for query in reference["queries"]],
+            [(query["xy"], {query["lookup"]}) for query in case["queries"]],
+        )
+        differences = compare(reference, abs_tol=1e-8)
+        self.assertFalse(differences, "\n".join(differences))

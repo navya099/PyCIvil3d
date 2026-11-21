@@ -51,7 +51,9 @@ for triangle in triangles:
   같은 XY에 서로 다른 Z를 넣는 요청은 배치 전체를 거부합니다.
 - `FindTriangleAtXY(x, y)`는 해당 XY를 포함하는 삼각형을 반환하며,
   삼각형을 찾을 수 없으면 `ValueError`를 발생시킵니다. 공유 모서리나 정점에서는
-  Pycivil3d의 삼각망 순서에서 먼저 나타나는 삼각형을 선택합니다.
+  두 조회 메서드가 표면별로 기억하는 마지막 삼각형이 해당 XY를 포함하면
+  우선 선택합니다. 그 외에는 Pycivil3d의 삼각망 순서에서 먼저 나타나는
+  삼각형을 선택합니다. 표면을 다시 구성하면 이전 선택을 초기화합니다.
   [Civil 3D API](https://help.autodesk.com/cloudhelp/2026/ENU/Civil3D-API/files/html/8b567439-3b5b-78ab-ead7-d1195eb79444.htm)
 - `GetTriangles(includeInvisible)`와 `Triangles`는 조회 시점의 삼각망을
   반환합니다. 현재 사용자 정의 경계가 없어 모든 삼각형이 보이며, 두
@@ -235,3 +237,9 @@ python tools/compare_tin.py interior-edge-reference.json --abs-tol 1e-8
 2번과 4번 조회는 각각 위쪽과 아래쪽에서 삼각형만 조회한 직후의 중점
 결과입니다. 7번과 10번은 반대편의 표고만 추가로 조회한 직후의 중점
 결과입니다. 비교 도구도 출력에 기록된 호출만 순서대로 실행합니다.
+
+Civil 3D 2026의 단독 호출 결과는
+`tests/fixtures/civil3d_reference/tin_interior_edge_lookup_methods.json`에
+보관하며 일반 테스트에서 비교합니다. 첫 조회부터 공유 모서리에 놓이는
+경우와 이전 삼각형이 다음 공유 모서리를 포함하지 않는 경우의 Civil 3D
+선택 규칙은 아직 확인되지 않았습니다.

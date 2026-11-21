@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstddef>
+#include <optional>
 #include <stdexcept>
 #include <vector>
 
@@ -20,8 +21,8 @@ class PointNotOnEntityException : public std::runtime_error {
 class TinMesh {
 public:
     void add_vertices(const std::vector<Point3d>& locations);
-    double elevation_at_xy(double x, double y) const;
-    std::array<Point3d, 3> triangle_at_xy(double x, double y) const;
+    double elevation_at_xy(double x, double y);
+    std::array<Point3d, 3> triangle_at_xy(double x, double y);
     std::vector<std::array<Point3d, 3>> triangle_locations() const;
 
 private:
@@ -62,11 +63,14 @@ private:
                   TriangleMatch& match) const;
     };
 
-    TriangleMatch find_triangle(double x, double y) const;
+    static TriangleMatch match_at(const Triangle& triangle, double x, double y,
+                                  const std::vector<Point3d>& points);
+    TriangleMatch find_triangle(double x, double y);
     std::array<Point3d, 3> locations(const Triangle& triangle) const;
 
     std::vector<Point3d> vertices_;
     TriangleIndex index_;
+    std::optional<std::size_t> last_triangle_;
 };
 
 }  // namespace pycivil3d
