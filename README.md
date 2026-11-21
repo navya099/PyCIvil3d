@@ -194,3 +194,18 @@ python tools/compare_tin.py shared-edges-reference.json --abs-tol 1e-8
   되돌리면 원본과 같은 위치에서 선택한 삼각형을 비교할 수 있습니다.
 - `tin_shared_edges_reordered.json`은 점과 조회 좌표가 같고, 내부 정점을
   첫 번째로 옮기는 등 정점 입력 순서만 바꿨습니다.
+
+### 두 내부 정점 사이의 모서리 비교
+
+`tests/fixtures/civil3d_inputs/tin_interior_edge.json`은 원래 공유 모서리
+입력에 내부 정점 `(8, 4)`를 추가합니다. 첫 아홉 조회는 `(4, 5)`에서
+`(8, 4)`로 이어지는 모서리 위의 25%, 50%, 75% 지점과, 각 지점의 Y를
+−0.125 및 +0.125 이동한 좌표입니다. 마지막 세 조회는 양 끝 정점과
+표면 밖 좌표입니다.
+
+Civil 3D에서 `PYCIVIL3D_EXPORT_TIN`으로 이 입력을 실행해 새 JSON으로
+저장하고 비교합니다.
+
+```powershell
+python tools/compare_tin.py interior-edge-reference.json --abs-tol 1e-8
+```
