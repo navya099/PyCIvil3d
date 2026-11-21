@@ -184,3 +184,13 @@ Civil 3D에서 `PYCIVIL3D_EXPORT_TIN`으로 이 입력을 열고
 ```powershell
 python tools/compare_tin.py shared-edges-reference.json --abs-tol 1e-8
 ```
+
+같은 방향 선택이 유지되는지 확인하려면 다음 두 입력도 같은 방법으로
+내보냅니다. 세 입력의 조회 순서는 같으므로 출력의 같은 인덱스를 대조할
+수 있습니다.
+
+- `tin_shared_edges_rotated.json`은 점과 조회 좌표를 원점 기준으로
+  반시계 방향 90도 회전했습니다. 출력 정점을 `(x, y) → (y, -x)`로
+  되돌리면 원본과 같은 위치에서 선택한 삼각형을 비교할 수 있습니다.
+- `tin_shared_edges_reordered.json`은 점과 조회 좌표가 같고, 내부 정점을
+  첫 번째로 옮기는 등 정점 입력 순서만 바꿨습니다.
