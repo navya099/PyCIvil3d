@@ -216,3 +216,11 @@ python tools/compare_tin.py interior-edge-reference.json --abs-tol 1e-8
 같은 좌표를 역순으로 조회합니다. 출력에서 같은 XY의 두 `triangle` 값을
 대조하면 조회 순서에 따른 차이를 확인할 수 있습니다. 끝 정점은 별도
 정점 선택의 영향을 피하기 위해 이 입력에서 제외했습니다.
+
+`tests/fixtures/civil3d_inputs/tin_interior_edge_query_order.json`은 모서리
+중점 `(6, 4.5)`을 위쪽 `(6, 4.625)`과 아래쪽 `(6, 4.375)` 조회 직후에
+번갈아 조회합니다. 처음 두 순서에서는 중점을 한 번 더 조회해 결과가
+유지되는지도 확인합니다. 출력의 `queries` 순서와 중복 좌표를 유지해야
+직전 조회의 영향을 비교할 수 있습니다. 기존 내보내기 명령은 각 좌표에서
+`FindElevationAtXY`를 호출한 뒤 `FindTriangleAtXY`를 호출하므로,
+이 입력은 두 호출을 포함한 조회 순서의 영향을 검사합니다.
