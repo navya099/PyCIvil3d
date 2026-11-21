@@ -60,3 +60,20 @@ class Civil3dReferenceTests(unittest.TestCase):
         )
         differences = compare(reference, abs_tol=1e-8)
         self.assertFalse(differences, "\n".join(differences))
+
+    def test_shared_edge_lookup_walks_from_the_previous_triangle(self):
+        fixtures = Path(__file__).parent / "fixtures"
+        for case in ("multistep", "same_start_triangle"):
+            with self.subTest(case=case):
+                name = f"tin_interior_edge_{case}.json"
+                source = json.loads((fixtures / "civil3d_inputs" / name).read_text(encoding="utf-8"))
+                reference = json.loads(
+                    (fixtures / "civil3d_reference" / name).read_text(encoding="utf-8")
+                )
+                self.assertEqual(reference["points"], source["points"])
+                self.assertEqual(
+                    [query["xy"] for query in reference["queries"]],
+                    [query["xy"] for query in source["queries"]],
+                )
+                differences = compare(reference, abs_tol=1e-8)
+                self.assertFalse(differences, "\n".join(differences))

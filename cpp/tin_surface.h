@@ -39,6 +39,7 @@ private:
         std::array<std::size_t, 3> vertices;
         Bounds bounds;
         std::size_t order;
+        std::array<std::size_t, 3> neighbors;
     };
 
     struct Node {
@@ -63,6 +64,9 @@ private:
                   TriangleMatch& match) const;
     };
 
+    static std::array<long double, 3> weights_at(const Triangle& triangle, double x, double y,
+                                                  const std::vector<Point3d>& points);
+    TriangleMatch walk_to_triangle(std::size_t start, double x, double y) const;
     static TriangleMatch match_at(const Triangle& triangle, double x, double y,
                                   const std::vector<Point3d>& points);
     TriangleMatch find_triangle(double x, double y);

@@ -17,7 +17,12 @@ long double orient(const Point3d& a, const Point3d& b, double x, double y) {
          - dy * (static_cast<long double>(x) - a.x);
 }
 
-std::vector<std::array<std::size_t, 3>> triangulate(const std::vector<Point3d>& points) {
+struct MeshFace {
+    std::array<std::size_t, 3> vertices;
+    std::array<std::size_t, 3> neighbors;
+};
+
+std::vector<MeshFace> triangulate(const std::vector<Point3d>& points) {
     if (points.size() < 3) {
         return {};
     }
@@ -46,8 +51,13 @@ std::vector<std::array<std::size_t, 3>> triangulate(const std::vector<Point3d>& 
     }
 
     const delaunator::Delaunator mesh(coordinates);
-    std::vector<std::array<std::size_t, 3>> triangles;
-    triangles.reserve(mesh.triangles.size() / 3);
+    std::vector<MeshFace> triangles;
+    const auto face_count = mesh.triangles.size() / 3;
+    triangles.reserve(face_count);
+    const auto neighbor_of = [&](std::size_t halfedge) {
+        const auto opposite = mesh.halfedges[halfedge];
+        return opposite == delaunator::INVALID_INDEX ? face_count : opposite / 3;
+    };
     std::vector<bool> used(points.size());
     for (std::size_t i = 0; i < mesh.triangles.size(); i += 3) {
         const auto a = mesh.triangles[i];
@@ -57,10 +67,14 @@ std::vector<std::array<std::size_t, 3>> triangulate(const std::vector<Point3d>& 
         if (area == 0 || !std::isfinite(area)) {
             throw std::invalid_argument("TIN contains a numerically degenerate triangle");
         }
+        // Delaunator stores edges from each vertex to the next. Match them to
+        // the opposite vertex so they line up with the barycentric weights.
+        std::array<std::size_t, 3> neighbors{neighbor_of(i + 1), neighbor_of(i + 2), neighbor_of(i)};
         if (area < 0) {
             std::swap(b, c);
+            std::swap(neighbors[1], neighbors[2]);
         }
-        triangles.push_back({a, b, c});
+        triangles.push_back({{a, b, c}, neighbors});
         used[a] = used[b] = used[c] = true;
     }
     if (std::find(used.begin(), used.end(), false) != used.end()) {
@@ -95,16 +109,29 @@ void TinMesh::add_vertices(const std::vector<Point3d>& locations) {
     const auto triangles = triangulate(vertices);
     TriangleIndex index;
     index.triangles.reserve(triangles.size());
-    for (const auto& triangle : triangles) {
+    for (const auto& face : triangles) {
+        const auto& triangle = face.vertices;
         const auto& a = vertices[triangle[0]];
         const auto& b = vertices[triangle[1]];
         const auto& c = vertices[triangle[2]];
         const Bounds bounds{std::min({a.x, b.x, c.x}), std::min({a.y, b.y, c.y}),
                             std::max({a.x, b.x, c.x}), std::max({a.y, b.y, c.y})};
-        index.triangles.push_back({triangle, bounds, index.triangles.size()});
+        index.triangles.push_back({triangle, bounds, index.triangles.size(), face.neighbors});
     }
     if (!triangles.empty()) {
         index.build(0, triangles.size());
+        // Building the tree reorders the faces. Keep neighbor indices valid.
+        std::vector<std::size_t> position_by_order(triangles.size());
+        for (std::size_t i = 0; i < index.triangles.size(); ++i) {
+            position_by_order[index.triangles[i].order] = i;
+        }
+        for (auto& triangle : index.triangles) {
+            for (auto& neighbor : triangle.neighbors) {
+                if (neighbor < position_by_order.size()) {
+                    neighbor = position_by_order[neighbor];
+                }
+            }
+        }
     }
 
     vertices_.swap(vertices);
@@ -174,19 +201,40 @@ void TinMesh::TriangleIndex::find(std::size_t node, double x, double y,
     }
 }
 
+std::array<long double, 3> TinMesh::weights_at(const Triangle& triangle, double x, double y,
+                                              const std::vector<Point3d>& points) {
+    const auto& a = points[triangle.vertices[0]];
+    const auto& b = points[triangle.vertices[1]];
+    const auto& c = points[triangle.vertices[2]];
+    return {orient(b, c, x, y), orient(c, a, x, y), orient(a, b, x, y)};
+}
+
 TinMesh::TriangleMatch TinMesh::match_at(const Triangle& triangle, double x, double y,
                                         const std::vector<Point3d>& points) {
     if (!triangle.bounds.contains(x, y)) {
         return {};
     }
-    const auto& a = points[triangle.vertices[0]];
-    const auto& b = points[triangle.vertices[1]];
-    const auto& c = points[triangle.vertices[2]];
-    const auto wa = orient(b, c, x, y);
-    const auto wb = orient(c, a, x, y);
-    const auto wc = orient(a, b, x, y);
-    if (wa >= 0 && wb >= 0 && wc >= 0) {
-        return {&triangle, {wa, wb, wc}};
+    const auto weights = weights_at(triangle, x, y, points);
+    if (std::all_of(weights.begin(), weights.end(), [](auto weight) { return weight >= 0; })) {
+        return {&triangle, weights};
+    }
+    return {};
+}
+
+TinMesh::TriangleMatch TinMesh::walk_to_triangle(std::size_t start, double x, double y) const {
+    constexpr std::size_t max_steps = 32;
+    auto current = start;
+    for (std::size_t step = 0; step < max_steps && current < index_.triangles.size(); ++step) {
+        const auto& triangle = index_.triangles[current];
+        const auto weights = weights_at(triangle, x, y, vertices_);
+        if (!std::all_of(weights.begin(), weights.end(), [](auto weight) { return std::isfinite(weight); })) {
+            break;
+        }
+        const auto smallest = std::min_element(weights.begin(), weights.end());
+        if (*smallest >= 0) {
+            return match_at(triangle, x, y, vertices_);
+        }
+        current = triangle.neighbors[smallest - weights.begin()];
     }
     return {};
 }
@@ -205,6 +253,13 @@ TinMesh::TriangleMatch TinMesh::find_triangle(double x, double y) {
     TriangleMatch match;
     if (!index_.nodes.empty()) {
         index_.find(0, x, y, vertices_, match);
+    }
+    if (match.triangle && last_triangle_
+        && std::find(match.weights.begin(), match.weights.end(), 0) != match.weights.end()) {
+        const auto walked = walk_to_triangle(*last_triangle_, x, y);
+        if (walked.triangle) {
+            match = walked;
+        }
     }
     if (match.triangle) {
         last_triangle_ = static_cast<std::size_t>(match.triangle - index_.triangles.data());
