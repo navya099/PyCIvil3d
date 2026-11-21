@@ -326,3 +326,12 @@ Pycivil3d의 삼각망에서 선행 삼각형마다 중점 양쪽까지의 최�
 `freshSurfacePerQuery`를 지원하는 기존 DLL로 두 입력을 내보내면, 두
 메서드가 어디까지 값을 반환하는지와 TIN 크기에 따라 결과가 달라지는지
 별도로 대조할 수 있습니다.
+
+`tin_hull_boundary_tolerance_refined.json`과
+`tin_hull_boundary_tolerance_planar.json`은 경계까지의 거리
+`0.000099`, `0.0001`, `0.000101`을 포함해 이전 실험에서 관찰한
+구간을 더 촘촘하게 검사합니다. 두 파일의 XY와 조회 순서는 같고,
+평면 입력의 정점 표고는 `z = 3 + x + 2y`로 지정했습니다.
+경계에서 같은 거리의 세 X 좌표를 함께 조회해 외부 표고가 평면을
+따르는지, 결과가 변을 따라 달라지는지 대조할 수 있습니다.
+기존 `freshSurfacePerQuery` 지원 DLL로 두 입력을 각각 내보냅니다.
