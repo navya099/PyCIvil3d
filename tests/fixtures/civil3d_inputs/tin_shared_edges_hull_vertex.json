@@ -1,0 +1,23 @@
+{
+  "freshSurfacePerQuery": true,
+  "points": [[0, 0, 3], [12, 0, 17], [11, 10, -2], [0, 8, 8], [4, 5, 22]],
+  "queries": [
+    {"xy": [0, 0], "lookup": "triangle"},
+    {"xy": [0.0625, 0.0625], "lookup": "triangle"},
+    {"xy": [0.0625, 0.078125], "lookup": "triangle"},
+    {"xy": [0.0625, 0.09375], "lookup": "triangle"},
+    {"xy": [0.0625, 0], "lookup": "triangle"},
+    {"xy": [0.0625, -0.015625], "lookup": "triangle"},
+    {"xy": [6.103515625e-05, 6.103515625e-05], "lookup": "triangle"},
+    {"xy": [6.103515625e-05, 7.62939453125e-05], "lookup": "triangle"},
+    {"xy": [6.103515625e-05, 9.1552734375e-05], "lookup": "triangle"},
+    {"xy": [6.103515625e-05, 0], "lookup": "triangle"},
+    {"xy": [6.103515625e-05, -1.52587890625e-05], "lookup": "triangle"},
+    {"xy": [5.960464477539063e-08, 5.960464477539063e-08], "lookup": "triangle"},
+    {"xy": [5.960464477539063e-08, 7.450580596923828e-08], "lookup": "triangle"},
+    {"xy": [5.960464477539063e-08, 8.940696716308594e-08], "lookup": "triangle"},
+    {"xy": [5.960464477539063e-08, 0], "lookup": "triangle"},
+    {"xy": [5.960464477539063e-08, -1.4901161193847656e-08], "lookup": "triangle"},
+    {"xy": [0, 0], "lookup": "triangle"}
+  ]
+}
