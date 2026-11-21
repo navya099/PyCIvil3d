@@ -156,3 +156,17 @@ XYZ를 `triangle`로 기록합니다. 삼각형을 찾을 수 없으면 `null`�
 공유 모서리와 정점의 선택을 검증하려면 플러그인을 다시 빌드해 로드하고
 위의 네 점 입력 두 개를 새 JSON 파일로 다시 내보냅니다. 두 입력 모두
 중앙 `(5, 5)`가 공유 모서리 위에 있고 `(10, 10)`은 TIN 정점입니다.
+
+### 로드된 빌드 확인
+
+Civil 3D에서 최신 `TinReferenceExporter.dll`을 `NETLOAD`로 로드하면
+명령창에 DLL 버전과 모듈 식별자(MVID)가 표시됩니다. 같은 정보가 출력
+JSON의 `exporterBuild`에도 기록됩니다. 새 DLL로 교체해 확인할 때는
+Civil 3D를 다시 시작한 뒤 새 DLL을 로드하세요.
+
+Python이 로드한 C++ 확장의 버전, 컴파일 시각, 파일 경로는 활성
+가상환경에서 다음 명령으로 확인할 수 있습니다.
+
+```powershell
+python -c "import pycivil3d._core as c; print(c.__version__, c.__build_stamp__, c.__file__)"
+```

@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -8,12 +9,32 @@ using Autodesk.Civil.DatabaseServices;
 using Application = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 using Exception = System.Exception;
 
+[assembly: ExtensionApplication(typeof(Pycivil3d.TinReferenceExporter))]
 [assembly: CommandClass(typeof(Pycivil3d.TinReferenceExporter))]
 
 namespace Pycivil3d;
 
-public sealed class TinReferenceExporter
+public sealed class TinReferenceExporter : IExtensionApplication
 {
+    private static string ExporterBuild
+    {
+        get
+        {
+            var assembly = typeof(TinReferenceExporter).Assembly;
+            var version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+                ?.InformationalVersion ?? assembly.GetName().Version?.ToString();
+            return $"{version} (MVID {assembly.ManifestModule.ModuleVersionId})";
+        }
+    }
+
+    public void Initialize()
+    {
+        Application.DocumentManager.MdiActiveDocument?.Editor.WriteMessage(
+            $"\nPycivil3d TIN reference exporter loaded: {ExporterBuild}");
+    }
+
+    public void Terminate() { }
+
     [CommandMethod("PYCIVIL3D_EXPORT_TIN")]
     public void ExportTin()
     {
@@ -44,6 +65,7 @@ public sealed class TinReferenceExporter
             var reference = new
             {
                 source = $"Autodesk Civil 3D / AeccDbMgd {typeof(TinSurface).Assembly.GetName().Version}",
+                exporterBuild = ExporterBuild,
                 points,
                 triangles,
                 queries = queryResults

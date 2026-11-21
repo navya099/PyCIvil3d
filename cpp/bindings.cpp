@@ -7,6 +7,9 @@ namespace py = pybind11;
 using namespace pycivil3d;
 
 PYBIND11_MODULE(_core, module) {
+    module.attr("__version__") = PYCIVIL3D_NATIVE_VERSION;
+    module.attr("__build_stamp__") = __DATE__ " " __TIME__;
+
     py::register_exception<PointNotOnEntityException>(module, "PointNotOnEntityException");
 
     py::class_<Point3d>(module, "Point3d")
