@@ -70,10 +70,20 @@ def compare(reference, abs_tol):
             triangle = triangle_key(triangle, f"queries[{i}].triangle")
         queries.append((xy, "elevation" in query, elevation, "triangle" in query, triangle))
 
-    database = Database()
-    surface = database.get_object(TinSurface.Create(database, "Reference comparison"))
-    surface.AddVertices(Point3dCollection(Point3d(*point) for point in points))
+    fresh_surface_per_query = reference.get("freshSurfacePerQuery", False)
+    if not isinstance(fresh_surface_per_query, bool):
+        raise ValueError("freshSurfacePerQuery must be a boolean")
 
+    vertices = Point3dCollection(Point3d(*point) for point in points)
+
+    def create_surface():
+        database = Database()
+        surface_id = TinSurface.Create(database, "Reference comparison")
+        new_surface = database.get_object(surface_id)
+        new_surface.AddVertices(vertices)
+        return new_surface
+
+    surface = create_surface()
     actual_triangles = Counter(map(surface_triangle_key, surface.GetTriangles(False)))
 
     differences = []
@@ -87,6 +97,8 @@ def compare(reference, abs_tol):
             differences.append(f"{count} {label} triangle(s), first {first}")
 
     for index, query in enumerate(queries, start=1):
+        if fresh_surface_per_query and index > 1:
+            surface = create_surface()
         (x, y), compare_elevation, expected, compare_triangle, expected_triangle = query
         if compare_elevation:
             try:

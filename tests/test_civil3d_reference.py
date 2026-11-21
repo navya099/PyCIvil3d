@@ -77,3 +77,17 @@ class Civil3dReferenceTests(unittest.TestCase):
                 )
                 differences = compare(reference, abs_tol=1e-8)
                 self.assertFalse(differences, "\n".join(differences))
+
+    def test_independent_queries_clear_the_previous_triangle(self):
+        fixture = Path(__file__).parent / "fixtures/civil3d_reference"
+        reference = json.loads(
+            (fixture / "tin_interior_edge_lookup_methods.json").read_text(encoding="utf-8")
+        )
+        # Start below the edge, then expect the independent lookup to select above it.
+        reference["queries"] = [reference["queries"][2], reference["queries"][1]]
+        reference["freshSurfacePerQuery"] = True
+        self.assertEqual(compare(reference, abs_tol=1e-8), [])
+        reference["freshSurfacePerQuery"] = False
+        differences = compare(reference, abs_tol=1e-8)
+        self.assertEqual(len(differences), 1)
+        self.assertIn("Query 2:", differences[0])

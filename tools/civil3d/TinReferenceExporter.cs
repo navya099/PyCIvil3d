@@ -61,13 +61,18 @@ public sealed class TinReferenceExporter : IExtensionApplication
             var queries = json.RootElement.GetProperty("queries").EnumerateArray()
                 .Select(ReadQuery).ToArray();
 
-            var (triangles, queryResults) = Capture(document.Database, points, queries);
+            var freshSurfacePerQuery = json.RootElement.TryGetProperty("freshSurfacePerQuery", out var fresh)
+                && fresh.GetBoolean();
+            var (triangles, queryResults) = freshSurfacePerQuery
+                ? CaptureIndependentQueries(document.Database, points, queries)
+                : Capture(document.Database, points, queries);
             var reference = new
             {
                 source = $"Autodesk Civil 3D / AeccDbMgd {typeof(TinSurface).Assembly.GetName().Version}",
                 exporterBuild = ExporterBuild,
                 points,
                 triangles,
+                freshSurfacePerQuery,
                 queries = queryResults
             };
             var bytes = JsonSerializer.SerializeToUtf8Bytes(reference, new JsonSerializerOptions { WriteIndented = true });
@@ -78,6 +83,21 @@ public sealed class TinReferenceExporter : IExtensionApplication
         {
             editor.WriteMessage($"\nTIN reference export failed: {error.Message}");
         }
+    }
+
+    private static (List<double[][]> Triangles, List<Dictionary<string, object?>> Queries)
+        CaptureIndependentQueries(Database database, double[][] points, Query[] queries)
+    {
+        if (queries.Length == 0)
+            return Capture(database, points, queries);
+
+        var (triangles, results) = Capture(database, points, [queries[0]]);
+        for (var i = 1; i < queries.Length; i++)
+        {
+            var (_, result) = Capture(database, points, [queries[i]]);
+            results.Add(result[0]);
+        }
+        return (triangles, results);
     }
 
     private static (List<double[][]> Triangles, List<Dictionary<string, object?>> Queries) Capture(
