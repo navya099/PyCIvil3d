@@ -170,3 +170,17 @@ Python이 로드한 C++ 확장의 버전, 컴파일 시각, 파일 경로는 활
 ```powershell
 python -c "import pycivil3d._core as c; print(c.__version__, c.__build_stamp__, c.__file__)"
 ```
+
+### 여러 공유 모서리 비교
+
+`tests/fixtures/civil3d_inputs/tin_shared_edges.json`은 내부 정점
+`(4, 5)`를 포함하는 네 삼각형을 대상으로 합니다. 첫 12개 조회는
+내부 모서리 네 개의 중점과 각 중점에서 X를 ±0.125 이동한 좌표입니다.
+나머지 세 조회는 내부 정점, 외곽 정점, 표면 밖 좌표입니다.
+
+Civil 3D에서 `PYCIVIL3D_EXPORT_TIN`으로 이 입력을 열고
+`shared-edges-reference.json`으로 저장한 뒤 비교합니다.
+
+```powershell
+python tools/compare_tin.py shared-edges-reference.json --abs-tol 1e-8
+```
