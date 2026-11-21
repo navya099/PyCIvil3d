@@ -209,3 +209,10 @@ Civil 3D에서 `PYCIVIL3D_EXPORT_TIN`으로 이 입력을 실행해 새 JSON으�
 ```powershell
 python tools/compare_tin.py interior-edge-reference.json --abs-tol 1e-8
 ```
+
+`tests/fixtures/civil3d_inputs/tin_interior_edge_sweep.json`은 같은 점을
+사용하고, 공유 모서리 내부의 15개 좌표를 1/16 간격으로 조회합니다.
+앞 15개 조회는 `(4, 5)` 쪽에서 `(8, 4)` 쪽으로 진행하고, 뒤 15개는
+같은 좌표를 역순으로 조회합니다. 출력에서 같은 XY의 두 `triangle` 값을
+대조하면 조회 순서에 따른 차이를 확인할 수 있습니다. 끝 정점은 별도
+정점 선택의 영향을 피하기 위해 이 입력에서 제외했습니다.
